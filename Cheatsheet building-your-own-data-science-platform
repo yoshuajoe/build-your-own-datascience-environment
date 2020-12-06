@@ -1,0 +1,24 @@
+Cheatsheet building-your-own-data-science-platform
+
+# docker compose 
+docker compose -f <nama-file> up -d
+
+# list all container 
+docker container ls
+
+# delete container 
+docker container rm <container-id>
+
+# dive into container 
+docker exec -it <container-id> /bin/bash
+
+# list all images
+docker image ls
+
+# access psql from host
+docker exec -ti 59724a1053e8 psql -h localhost -U postgres -W
+
+# copy data to container
+docker cp medalist.csv 59724a1053e8:/medalist.csv
+
+

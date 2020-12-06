@@ -1,0 +1,134 @@
+version: "3"
+services:
+
+  # Computation
+  jupyter:
+    container_name: "dwh_jupyter"
+    restart: "always"
+    image: jupyter/scipy-notebook:latest
+    user: root
+    environment:
+      JUPYTER_PASSWORD: kepiting2121
+      MINIO_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE
+      MINIO_SECRET_KEY: wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY
+      SHARED_PASSWORD: ayamgoreng
+      GRANT_SUDO: "yes"
+    volumes:
+      - ./shared/notebooks/:/home/jovyan/work/notebooks
+      - ./shared/dags/:/home/jovyan/work/dags
+    ports:
+      - 8888:8888
+    entrypoint: sh -c 'start-notebook.sh --NotebookApp.token=$$JUPYTER_PASSWORD'
+
+  airflow_scheduler:
+    image: apache/airflow
+    command: scheduler
+    depends_on:
+      - postgres-db
+    links:
+      - postgres-db
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+
+  airflow_webserver:
+    image: apache/airflow
+    entrypoint: ./scripts/entrypoint.sh
+    links:
+      - postgres-db
+    depends_on:
+      - postgres-db
+      - airflow_scheduler
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./scripts:/opt/airflow/scripts
+    ports:
+      - "8080:8080"
+
+  api-service:
+    build: .
+    ports: 
+        - 1234:1234
+    volumes:
+      - ./:/usr/src/app/
+    environment: 
+      FLASK_DEBUG: 1
+  
+  # Visualization
+  superset:
+    container_name: "dwh_superset"
+    restart: "always"
+    image: tylerfowler/superset:0.24
+    depends_on:
+        - postgres-db
+    ports:
+      - 8088:8088
+
+  # Model Storage
+  minio:
+    container_name: "dwh_minio"
+    restart: "always"
+    image: minio/minio
+    environment:
+      MINIO_ACCESS_KEY: AKIAIOSFODNN7EXAMPLE
+      MINIO_SECRET_KEY: wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY
+    volumes:
+        - minio_volume:/data
+    ports:
+        - 9000:9000
+    command: server /data
+
+  # Admin Overview
+  portainer:
+    container_name: "dwh_portainer"
+    restart: "always"
+    image: portainer/portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_volume:/data
+    ports:
+      - 9090:9000
+    command: -H unix:///var/run/docker.sock
+
+  postgres-db:
+    image: postgres
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_PASSWORD: ayamgoreng
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      # declare your mount volume /host/dir:/container/dir
+      - /Users/angelinecjp/docker/volumes/postgres:/var/lib/postgresql/data
+
+  metabase-app:
+    container_name: "dwh_metabase"
+    image: metabase/metabase
+    restart: always
+    ports:
+      - 3001:3000
+    volumes:
+      # declare your mount volume /host/dir:/container/dir
+      - /Users/angelinecjp/metabase-data:/metabase-data
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: postgres
+      MB_DB_PORT: 5432
+      MB_DB_USER: postgres
+      MB_DB_PASS: ayamgoreng
+      MB_DB_HOST: postgres-db
+    depends_on:
+      - postgres-db
+    links:
+      - postgres-db
+
+# Volumes to persist data
+volumes:
+  minio_volume:
+  portainer_volume:
