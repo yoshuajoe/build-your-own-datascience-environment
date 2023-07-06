@@ -2,5 +2,5 @@ minio==4.0.0
 numpy==1.15.4
 pandas==1.1.4
 scikit-learn==0.23.2
-scipy==0.19.1
+scipy==1.10.0
 flask==1.1.2
